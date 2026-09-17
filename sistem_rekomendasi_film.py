@@ -62,7 +62,6 @@ from torch import nn
 warnings.filterwarnings("ignore")
 pd.set_option("display.max_columns", 50)
 pd.set_option("display.width", 160)
-sns.set_theme(style="whitegrid")
 
 SEED = 42
 random.seed(SEED)
@@ -222,6 +221,11 @@ display(pd.DataFrame({"rating per user": per_user.describe(), "rating per film":
 ACCENT = "#d64545"
 
 
+def apply_theme() -> None:
+    """Apply the shared seaborn theme. Call once before plotting so every figure matches."""
+    sns.set_theme(style="whitegrid")
+
+
 def _finish(fig: plt.Figure, save_path: Path | str | None) -> plt.Figure:
     """Tighten the layout and save ``fig`` to ``save_path`` (if given)."""
     fig.tight_layout()
@@ -378,6 +382,9 @@ def plot_sparsity(
     )
     ax.grid(False)
     return _finish(fig, save_path)
+
+
+apply_theme()
 
 
 # In[10]:

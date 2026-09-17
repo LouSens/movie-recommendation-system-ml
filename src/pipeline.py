@@ -48,11 +48,23 @@ from src.utils import visualization as viz  # noqa: E402
 
 logger = logging.getLogger("pipeline")
 
+# Model names and order match the notebook's evaluation table (legend labels and colors).
+CBF, SVD, NEUMF, POPULARITY = (
+    "Content-Based (TF-IDF)",
+    "CF — SVD",
+    "CF — NeuMF",
+    "Popularity baseline",
+)
+MODEL_ORDER = (CBF, SVD, NEUMF, POPULARITY)
+
 
 def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
     """Execute the full pipeline and return the evaluation table."""
     set_seed(RANDOM_SEED)
-    figures = FIGURES_DIR / "pipeline"  # keeps the notebook's figures untouched
+    viz.apply_theme()
+    # Same functions, inputs and model names as the notebook, so these overwrite
+    # outputs/figures with identical images.
+    figures = FIGURES_DIR
     for directory in (PROCESSED_DATA_DIR, MODELS_DIR, figures, RESULTS_DIR):
         directory.mkdir(parents=True, exist_ok=True)
 
@@ -96,7 +108,7 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
     with timer("Content-based TF-IDF"):
         popularity = ratings["movieId"].value_counts()
         cbf = ContentBasedRecommender(movies_content, popularity=popularity).fit()
-        scores["Content-Based (TF-IDF)"] = cbf.score_users(train, user_enc, item_enc)
+        scores[CBF] = cbf.score_users(train, user_enc, item_enc)
     save_pickle(cbf.tfidf_matrix, PROCESSED_DATA_DIR / "tfidf_matrix.pkl")
     sample_titles = [
         "Toy Story (1995)",
@@ -129,9 +141,9 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
     svd.fit(train)
     save_pickle(svd.model, MODELS_DIR / "svd_model.pkl")
     svd_test = svd.predict(test)
-    results["SVD"] = {"RMSE": rmse(test["rating"], svd_test), "MAE": mae(test["rating"], svd_test)}
+    results[SVD] = {"RMSE": rmse(test["rating"], svd_test), "MAE": mae(test["rating"], svd_test)}
     viz.plot_svd_errors(test["rating"], svd_test, save_path=figures / "13_svd_errors.png")
-    scores["SVD"] = svd.score_users(user_enc, item_enc)
+    scores[SVD] = svd.score_users(user_enc, item_enc)
 
     # 5c. Neural CF -----------------------------------------------------------
     if not skip_ncf:
@@ -143,9 +155,9 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
         viz.plot_training_history(
             ncf.history.to_frame(), save_path=figures / "11_ncf_learning_curve.png"
         )
-        scores["Neural CF (NeuMF)"] = ncf.score_users()
+        scores[NEUMF] = ncf.score_users()
 
-    scores["Popularity baseline"] = popularity_scores(train, user_enc, item_enc)
+    scores[POPULARITY] = popularity_scores(train, user_enc, item_enc)
 
     # 6. Evaluation -----------------------------------------------------------
     train_mask = user_item.toarray() > 0
@@ -154,7 +166,7 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
         metrics["Coverage@10"] = catalog_coverage(matrix, train_mask, k=10)
         results.setdefault(name, {}).update(metrics)
 
-    table = pd.DataFrame(results).T
+    table = pd.DataFrame(results).T.reindex([m for m in MODEL_ORDER if m in results])
     table.to_csv(RESULTS_DIR / "pipeline_evaluation_metrics.csv")
     viz.plot_metric_comparison(
         table.drop(columns=["Coverage@10"]), save_path=figures / "12_metric_comparison.png"
@@ -164,9 +176,9 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
     sample_user = int(user_enc.to_id[0])
     top = svd.recommend(sample_user, train, movies, item_enc)
     logger.info("SVD top-10 for user %d:\n%s", sample_user, top.to_string())
-    if "Neural CF (NeuMF)" in scores:
+    if NEUMF in scores:
         top = top_n_for_user(
-            sample_user, scores["Neural CF (NeuMF)"][0], train, movies, item_enc, score_name="score"
+            sample_user, scores[NEUMF][0], train, movies, item_enc, score_name="score"
         )
         logger.info("Neural CF top-10 for user %d:\n%s", sample_user, top.to_string())
     return table

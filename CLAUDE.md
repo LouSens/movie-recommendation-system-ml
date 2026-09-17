@@ -72,8 +72,7 @@ movie-recommendation-system-ml/
 │
 ├── data/raw/, data/processed/         # gitignored (except .gitkeep)
 ├── models/saved/                      # gitignored: svd_model.pkl, ncf_model.pth
-├── outputs/figures/                   # 13 notebook figures (committed; used by the report)
-├── outputs/figures/pipeline/          # Same 13 figures from the CLI (gitignored)
+├── outputs/figures/                   # 13 figures (committed; used by the report). Notebook and CLI write identical images here
 ├── outputs/results/                   # evaluation_metrics.csv, svd_grid_search.csv
 │
 └── tests/                             # 36 tests on synthetic fixtures (conftest.py)
@@ -164,6 +163,9 @@ The Dicoding zip only contains the notebook, the .py and the report (+ figures),
 ### Plotting has one source: `src/utils/visualization.py`
 The notebook embeds these functions **verbatim**, grouped by section (`SHARED_HELPERS` + `EDA_PLOTS` at the start of EDA; `plot_similarity_heatmap`, `plot_svd_grid_search`, `plot_training_history` right before first use in Modeling; `EVALUATION_PLOTS` in Evaluation). After editing the module (including `ruff format`), regenerate and re-execute the notebook, then check each function's source still appears verbatim in the notebook. Chart labels are Indonesian because the figures go into the Indonesian report.
 
+### One figures folder
+The CLI pipeline saves to `outputs/figures/` too, with the same functions, raw inputs, model names (`CF — SVD`, `CF — NeuMF`) and model order as the notebook, so it overwrites with identical images. Keep these in sync if you rename models in either place. Running the pipeline is optional.
+
 ### Cold-start handling
 CBF handles new movies; CF uses the iterative ≥ 20 / ≥ 5 filter. A hybrid is on the roadmap.
 
@@ -184,7 +186,7 @@ CBF handles new movies; CF uses the iterative ≥ 20 / ≥ 5 filter. A hybrid is
 ```bash
 pytest                                        # 36 tests (~15 s)
 ruff check src tests scripts && ruff format --check src tests scripts
-python -m src.pipeline [--skip-tuning] [--skip-ncf]
+python -m src.pipeline [--skip-tuning] [--skip-ncf]   # optional; the notebook alone covers the submission
 jupyter nbconvert --to notebook --execute --inplace notebooks/sistem_rekomendasi_film.ipynb
 jupyter nbconvert --to script notebooks/sistem_rekomendasi_film.ipynb --output-dir .
 python scripts/build_submission.py            # validates notebook executed + images exist

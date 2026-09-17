@@ -21,6 +21,11 @@ import seaborn as sns
 ACCENT = "#d64545"
 
 
+def apply_theme() -> None:
+    """Apply the shared seaborn theme. Call once before plotting so every figure matches."""
+    sns.set_theme(style="whitegrid")
+
+
 def _finish(fig: plt.Figure, save_path: Path | str | None) -> plt.Figure:
     """Tighten the layout and save ``fig`` to ``save_path`` (if given)."""
     fig.tight_layout()
@@ -280,7 +285,7 @@ def plot_svd_errors(
 
 
 # Section grouping used to embed these functions in the notebook.
-SHARED_HELPERS = ("ACCENT", "_finish", "_genre_lists")
+SHARED_HELPERS = ("ACCENT", "apply_theme", "_finish", "_genre_lists")
 EDA_PLOTS = (
     "plot_rating_distribution",
     "plot_genre_frequency",
