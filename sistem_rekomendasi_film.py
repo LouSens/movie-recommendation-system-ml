@@ -211,7 +211,7 @@ display(pd.DataFrame({"rating per user": per_user.describe(), "rating per film":
 
 # ### 3.3 Exploratory Data Analysis (EDA)
 # 
-# Semua grafik dibuat dengan fungsi visualisasi yang **sama persis** dengan modul `src/utils/visualization.py` pada repositori, sehingga notebook tetap mandiri (*self-contained*) tetapi kode visualisasinya tidak terduplikasi dengan logika berbeda. Setiap fungsi menggambar satu grafik, menyimpannya ke `outputs/figures/` (dipakai di laporan), lalu mengembalikan objek `Figure`.
+# Semua grafik dibuat oleh fungsi visualisasi yang **didefinisikan langsung di notebook ini**. Notebook tidak mengimpor modul apa pun dari repositori, sehingga dapat dijalankan secara mandiri (mis. di Google Colab) dan tetap menghasilkan seluruh grafik. Setiap fungsi menggambar satu grafik, menyimpannya ke `outputs/figures/` (dipakai di laporan), lalu mengembalikan objek `Figure`.
 # 
 # Fungsi pendukung dan fungsi visualisasi EDA:
 
@@ -701,7 +701,7 @@ display(
 )
 
 
-# Fungsi visualisasi untuk *heatmap* similarity (dari `src/utils/visualization.py`):
+# Fungsi visualisasi untuk *heatmap* similarity:
 
 # In[27]:
 
@@ -818,7 +818,7 @@ best_params = {k: v for k, v in grid.best_params["rmse"].items() if k != "random
 print("Parameter terbaik (RMSE):", best_params, "| CV RMSE =", round(grid.best_score["rmse"], 4))
 
 
-# Fungsi visualisasi hasil *grid search* (dari `src/utils/visualization.py`):
+# Fungsi visualisasi hasil *grid search*:
 
 # In[32]:
 
@@ -1050,7 +1050,7 @@ best_epoch = int(ncf_history.loc[ncf_history["val_ndcg@10"].idxmax(), "epoch"])
 print(f"Pelatihan selesai dalam {time.perf_counter() - start:.1f} detik — epoch terbaik: {best_epoch}")
 
 
-# Fungsi visualisasi *learning curve* NeuMF (dari `src/utils/visualization.py`):
+# Fungsi visualisasi *learning curve* NeuMF:
 
 # In[38]:
 
@@ -1146,7 +1146,7 @@ ranking_table.to_csv(RESULT_DIR / "evaluation_metrics.csv")
 display(ranking_table.round(4))
 
 
-# Fungsi visualisasi evaluasi (dari `src/utils/visualization.py`):
+# Fungsi visualisasi evaluasi:
 
 # In[43]:
 

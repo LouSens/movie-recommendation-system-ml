@@ -160,8 +160,11 @@ MovieLens popularity is strong; SVD and CBF are below it on ranking metrics, Neu
 ### Self-contained notebook
 The Dicoding zip only contains the notebook, the .py and the report (+ figures), so the notebook must not import `src/`. Model/data logic is duplicated deliberately — keep both in sync.
 
-### Plotting has one source: `src/utils/visualization.py`
-The notebook embeds these functions **verbatim**, grouped by section (`SHARED_HELPERS` + `EDA_PLOTS` at the start of EDA; `plot_similarity_heatmap`, `plot_svd_grid_search`, `plot_training_history` right before first use in Modeling; `EVALUATION_PLOTS` in Evaluation). After editing the module (including `ruff format`), regenerate and re-execute the notebook, then check each function's source still appears verbatim in the notebook. Chart labels are Indonesian because the figures go into the Indonesian report.
+### Notebook and .py are standalone
+The notebook never imports `src/`, `visualization.py` or any other repo file: it defines its own copies of every function and downloads the data itself. It must run in an empty folder and still produce all 13 figures. The submission `.py` must contain **exactly** the notebook's code cells (only exported via `jupyter nbconvert --to script`, never hand-edited). `scripts/build_submission.py` enforces both and refuses to build otherwise.
+
+### Plotting code is kept in sync with `src/utils/visualization.py`
+The notebook holds its own **verbatim copies** of these functions (no import), grouped by section (`SHARED_HELPERS` + `EDA_PLOTS` at the start of EDA; `plot_similarity_heatmap`, `plot_svd_grid_search`, `plot_training_history` right before first use in Modeling; `EVALUATION_PLOTS` in Evaluation). After editing the module (including `ruff format`), regenerate and re-execute the notebook, then check each function's source still appears verbatim in the notebook. Chart labels are Indonesian because the figures go into the Indonesian report.
 
 ### One figures folder
 The CLI pipeline saves to `outputs/figures/` too, with the same functions, raw inputs, model names (`CF — SVD`, `CF — NeuMF`) and model order as the notebook, so it overwrites with identical images. Keep these in sync if you rename models in either place. Running the pipeline is optional.
@@ -189,7 +192,7 @@ ruff check src tests scripts && ruff format --check src tests scripts
 python -m src.pipeline [--skip-tuning] [--skip-ncf]   # optional; the notebook alone covers the submission
 jupyter nbconvert --to notebook --execute --inplace notebooks/sistem_rekomendasi_film.ipynb
 jupyter nbconvert --to script notebooks/sistem_rekomendasi_film.ipynb --output-dir .
-python scripts/build_submission.py            # validates notebook executed + images exist
+python scripts/build_submission.py            # checks: notebook executed, no repo imports, .py == notebook code, images exist
 ```
 
 ---

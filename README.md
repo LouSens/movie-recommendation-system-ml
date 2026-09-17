@@ -400,12 +400,21 @@ Code style: PEP 8, Google-style docstrings, full type hints, 100-character lines
 python scripts/build_submission.py
 ```
 
-This creates `dist/submission_movie_recommendation.zip` containing:
+Before packaging, the script refuses to build if:
+
+- any notebook cell is unexecuted or has an error output,
+- the notebook imports anything from this repository (`src`, `scripts`, `tests`) or edits `sys.path`, which would break it outside the repo,
+- `sistem_rekomendasi_film.py` differs from the notebook's code cells (it must be a fresh `jupyter nbconvert --to script` export),
+- an image referenced by the report is missing.
+
+Both the notebook and the `.py` were verified to run on their own in an empty folder (no `src/`, no data), each regenerating all 13 figures pixel-identical to `outputs/figures/`.
+
+It creates `dist/submission_movie_recommendation.zip` containing:
 
 | File | Requirement |
 |---|---|
 | `sistem_rekomendasi_film.ipynb` | Executed Jupyter notebook |
-| `sistem_rekomendasi_film.py` | Python script |
+| `sistem_rekomendasi_film.py` | Python script: exactly the notebook's code cells |
 | `laporan_proyek_machine_learning.md` | Markdown report (Indonesian) |
 | `outputs/figures/*.png` | Images referenced by the report, so it renders offline |
 
