@@ -21,7 +21,7 @@ An end-to-end, reproducible recommender system that produces **top-N movie recom
 | Collaborative Filtering | **SVD** (Surprise, grid-searched) | Rating prediction (lowest RMSE / MAE) |
 | Collaborative Filtering | **NeuMF** — Neural Collaborative Filtering (PyTorch, CUDA) | Personalized top-N ranking (best Precision / Recall / NDCG) |
 
-> Built as the final project for **Dicoding — Belajar Machine Learning Terapan** (Recommendation System). The submission report is written in Indonesian: [`laporan_proyek_machine_learning.md`](laporan_proyek_machine_learning.md).
+> The full project report is written in Indonesian: [`laporan_proyek_machine_learning.md`](laporan_proyek_machine_learning.md).
 
 ---
 
@@ -36,7 +36,7 @@ An end-to-end, reproducible recommender system that produces **top-N movie recom
 - [Evaluation Protocol](#-evaluation-protocol)
 - [Key Design Decisions](#-key-design-decisions)
 - [Testing & Code Quality](#-testing--code-quality)
-- [Dicoding Submission](#-dicoding-submission)
+- [Submission Package](#-submission-package)
 - [Roadmap](#-roadmap)
 - [References](#-references)
 - [License](#-license)
@@ -105,41 +105,41 @@ Test set: 17,809 held-out ratings from 602 users (80:20 split per user). Relevan
 ```mermaid
 flowchart TD
     subgraph Ingestion["1 · Data Ingestion"]
-        A[GroupLens<br/>ml-latest-small.zip] -->|downloader.py| B[(data/raw<br/>movies · ratings · tags · links)]
-        B -->|loader.py<br/>schema validation| C[MovieLensData]
+        A["GroupLens<br/>ml-latest-small.zip"] -->|"downloader.py"| B[("data/raw<br/>movies · ratings · tags · links")]
+        B -->|"loader.py<br/>schema validation"| C["MovieLensData"]
     end
 
     subgraph Prep["2 · Data Preparation — preprocessor.py"]
-        C --> D1[clean_movies<br/>Unknown genre · genre_list · year]
-        C --> D2[clean_ratings<br/>range check · dedupe · datetime]
-        C --> D3[clean_tags<br/>normalize · dedupe · aggregate]
-        D1 & D3 --> E[build_movie_content<br/>genre_tokens + tags]
-        D2 --> F[filter_cold_start<br/>users ≥ 20 · movies ≥ 5]
-        F --> G[train_test_split_by_user<br/>80 : 20]
-        G --> H[IdEncoder + user-item matrix]
+        C --> D1["clean_movies<br/>Unknown genre · genre_list · year"]
+        C --> D2["clean_ratings<br/>range check · dedupe · datetime"]
+        C --> D3["clean_tags<br/>normalize · dedupe · aggregate"]
+        D1 & D3 --> E["build_movie_content<br/>genre_tokens + tags"]
+        D2 --> F["filter_cold_start<br/>users ≥ 20 · movies ≥ 5"]
+        F --> G["train_test_split_by_user<br/>80:20"]
+        G --> H["IdEncoder + user-item matrix"]
     end
 
     subgraph Features["3 · Features"]
-        E --> I[content_features.py<br/>TF-IDF genres ⊕ TF-IDF tags<br/>weighted, L2-normalized]
-        H --> J[collaborative_features.py<br/>sparse user × item matrix]
+        E --> I["content_features.py<br/>TF-IDF genres ⊕ TF-IDF tags<br/>weighted, L2-normalized"]
+        H --> J["collaborative_features.py<br/>sparse user × item matrix"]
     end
 
     subgraph Models["4 · Models"]
-        I --> M1[ContentBasedRecommender<br/>item-to-item + user profile]
-        J --> M2[SVDRecommender<br/>GridSearchCV 5-fold]
-        J --> M3[NCFRecommender · NeuMF<br/>negative sampling · early stopping · CUDA]
-        J --> M4[Popularity baseline]
+        I --> M1["ContentBasedRecommender<br/>item-to-item + user profile"]
+        J --> M2["SVDRecommender<br/>GridSearchCV 5-fold"]
+        J --> M3["NCFRecommender · NeuMF<br/>negative sampling · early stopping · CUDA"]
+        J --> M4["Popularity baseline"]
     end
 
     subgraph Eval["5 · Evaluation — metrics.py"]
-        M1 & M2 & M3 & M4 --> S[score matrix<br/>n_users × n_items]
-        S --> R1[Precision@K · Recall@K · NDCG@K · Coverage]
-        M2 --> R2[RMSE · MAE]
+        M1 & M2 & M3 & M4 --> S["score matrix<br/>n_users × n_items"]
+        S --> R1["Precision@K · Recall@K · NDCG@K · Coverage"]
+        M2 --> R2["RMSE · MAE"]
     end
 
-    R1 & R2 --> O[(outputs/<br/>figures · results CSV)]
-    M2 & M3 --> P[(models/saved<br/>svd_model.pkl · ncf_model.pth)]
-    S --> T[Top-N recommendations]
+    R1 & R2 --> O[("outputs/<br/>figures · results CSV")]
+    M2 & M3 --> P[("models/saved<br/>svd_model.pkl · ncf_model.pth")]
+    S --> T["Top-N recommendations"]
 ```
 
 Every recommender exposes the same contract: **a dense `[n_users × n_items]` score matrix**. The evaluation module, the top-N formatter and the baseline all work on that one interface, so adding a model means writing one `score_users()` method.
@@ -154,7 +154,7 @@ See [`docs/architecture.md`](docs/architecture.md) for module responsibilities, 
 movie-recommendation-system-ml/
 │
 ├── README.md                          # You are here
-├── laporan_proyek_machine_learning.md # Dicoding submission report (Indonesian)
+├── laporan_proyek_machine_learning.md # Project report (Indonesian)
 ├── sistem_rekomendasi_film.py         # Notebook exported as a script (submission)
 ├── CLAUDE.md                          # Context file for Claude Code
 ├── requirements.txt                   # Python dependencies
@@ -194,12 +194,12 @@ movie-recommendation-system-ml/
 │   └── test_visualization.py
 │
 ├── scripts/
-│   └── build_submission.py            # Packages the Dicoding .zip
+│   └── build_submission.py            # Validates and packages the submission .zip
 │
 ├── docs/
 │   ├── architecture.md                # Detailed system design
 │   ├── model_card.md                  # Models, metrics, limitations, ethics
-│   └── submission_checklist.md        # Dicoding rubric → where it is satisfied
+│   └── submission_checklist.md        # Report rubric → where it is satisfied
 │
 ├── data/                              # gitignored except .gitkeep
 │   ├── raw/                           # movies.csv, ratings.csv, tags.csv, links.csv
@@ -394,7 +394,7 @@ Code style: PEP 8, Google-style docstrings, full type hints, 100-character lines
 
 ---
 
-## 📦 Dicoding Submission
+## 📦 Submission Package
 
 ```bash
 python scripts/build_submission.py
@@ -455,5 +455,5 @@ The rubric-to-evidence mapping is in [`docs/submission_checklist.md`](docs/submi
 Released under the [MIT License](LICENSE). The MovieLens dataset is © GroupLens Research and is subject to its own [usage license](https://files.grouplens.org/datasets/movielens/ml-latest-small-README.html). It is not redistributed in this repository.
 
 <div align="center">
-<sub>Made by David Kurniawan · Dicoding Machine Learning Terapan</sub>
+<sub>Made by David Kurniawan</sub>
 </div>

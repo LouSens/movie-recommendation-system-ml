@@ -1,4 +1,4 @@
-"""Package the Dicoding submission zip.
+"""Package the project submission zip.
 
 Contents:
     sistem_rekomendasi_film.ipynb        executed notebook

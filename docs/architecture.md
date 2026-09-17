@@ -16,28 +16,28 @@ This document describes how the recommender is put together: the layers, the dat
 
 ```mermaid
 flowchart LR
-    subgraph L1[Data layer]
-        DL[downloader.py] --> LO[loader.py] --> PP[preprocessor.py]
+    subgraph L1["Data layer"]
+        DL["downloader.py"] --> LO["loader.py"] --> PP["preprocessor.py"]
     end
-    subgraph L2[Feature layer]
-        CF[content_features.py]
-        CO[collaborative_features.py]
+    subgraph L2["Feature layer"]
+        CF["content_features.py"]
+        CO["collaborative_features.py"]
     end
-    subgraph L3[Model layer]
-        CB[content_based.py]
-        SV[svd_cf.py]
-        NC[neural_cf.py]
-        BL[baseline.py]
+    subgraph L3["Model layer"]
+        CB["content_based.py"]
+        SV["svd_cf.py"]
+        NC["neural_cf.py"]
+        BL["baseline.py"]
     end
-    subgraph L4[Evaluation layer]
-        ME[metrics.py]
+    subgraph L4["Evaluation layer"]
+        ME["metrics.py"]
     end
-    subgraph L5[Presentation]
-        VI[visualization.py]
-        HE[helpers.top_n_for_user]
-        PL[pipeline.py CLI]
+    subgraph L5["Presentation"]
+        VI["visualization.py"]
+        HE["helpers.top_n_for_user"]
+        PL["pipeline.py CLI"]
     end
-    CFG[(config.py)] -.-> L1 & L2 & L3 & L4
+    CFG[("config.py")] -.-> L1 & L2 & L3 & L4
     PP --> CF & CO
     CF --> CB
     CO --> SV & NC & BL
@@ -89,9 +89,9 @@ The **score matrix** is the one interface every model shares. Higher score means
 
 ```mermaid
 flowchart LR
-    G[genre_tokens] --> TG[TfidfVectorizer<br/>unigram] --> NG[L2 normalize] --> WG["× √w"]
-    T[tags] --> TT[TfidfVectorizer<br/>1–2 gram, min_df 2] --> NT[L2 normalize] --> WT["× √(1−w)"]
-    WG & WT --> H[hstack → X]
+    G["genre_tokens"] --> TG["TfidfVectorizer<br/>unigram"] --> NG["L2 normalize"] --> WG["× √w"]
+    T["tags"] --> TT["TfidfVectorizer<br/>1–2 gram, min_df 2"] --> NT["L2 normalize"] --> WT["× √(1−w)"]
+    WG & WT --> H["hstack → X"]
     H --> S1["item-to-item: X[i] · Xᵀ"]
     H --> S2["user profile: normalize(W_centred · X) · Xᵀ"]
 ```
@@ -110,11 +110,11 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    U[user idx] --> UG[Embedding 64<br/>GMF] & UM[Embedding 64<br/>MLP]
-    I[item idx] --> IG[Embedding 64<br/>GMF] & IM[Embedding 64<br/>MLP]
+    U["user idx"] --> UG["Embedding 64<br/>GMF"] & UM["Embedding 64<br/>MLP"]
+    I["item idx"] --> IG["Embedding 64<br/>GMF"] & IM["Embedding 64<br/>MLP"]
     UG & IG --> P["⊙ element-wise product"]
-    UM & IM --> C[concat 128] --> L1[Linear 256 · ReLU · Dropout] --> L2[Linear 128 · ReLU · Dropout] --> L3[Linear 64 · ReLU · Dropout] --> L4[Linear 32 · ReLU · Dropout]
-    P & L4 --> F[concat 96] --> O[Linear 1 → logit]
+    UM & IM --> C["concat 128"] --> L1["Linear 256 · ReLU · Dropout"] --> L2["Linear 128 · ReLU · Dropout"] --> L3["Linear 64 · ReLU · Dropout"] --> L4["Linear 32 · ReLU · Dropout"]
+    P & L4 --> F["concat 96"] --> O["Linear 1 → logit"]
 ```
 
 Training loop, once per epoch:
@@ -134,10 +134,10 @@ sequenceDiagram
     M->>E: scores [U × I]
     E->>E: mask (user, item) pairs seen in train → −∞
     E->>E: Rel(u) = test items with rating ≥ 4.0 (∩ candidates)
-    E->>K: rows of users with |Rel| ≥ 1
+    E->>K: rows of users with at least one relevant item
     K-->>E: top-K item indices (argpartition + sort)
     E->>E: Precision@K, Recall@K, NDCG@K per user → mean
-    E-->>M: {"Precision@10": …, "NDCG@10": …, "evaluated_users": 592}
+    E-->>M: metrics dict (Precision, Recall, NDCG per K + evaluated_users)
 ```
 
 ## 7. Runtime profile (RTX 4050 Laptop, i9-13650HX)

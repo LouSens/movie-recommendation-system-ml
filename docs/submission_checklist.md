@@ -1,6 +1,6 @@
-# Dicoding Submission Checklist
+# Submission Checklist
 
-Maps every requirement of *Proyek Akhir: Sistem Rekomendasi* (Belajar Machine Learning Terapan) to where it is satisfied.
+Maps every requirement of the recommendation-system project brief and its report rubric to where it is satisfied.
 
 ## Submission files (mandatory)
 
@@ -18,7 +18,7 @@ Maps every requirement of *Proyek Akhir: Sistem Rekomendasi* (Belajar Machine Le
 
 ## Report rubric
 
-| Category | Mandatory criterion | Where | Additional criterion (⭐) | Where |
+| Category | Mandatory criterion | Where | Additional criterion | Where |
 |---|---|---|---|---|
 | **Project Overview** | Relevant background | Report → *Latar belakang* | Why the problem matters and how to solve it | *Mengapa dan bagaimana masalah ini diselesaikan* ✅ |
 | | | | Research / credible references | 11 APA references with DOIs ✅ |
@@ -37,9 +37,9 @@ Maps every requirement of *Proyek Akhir: Sistem Rekomendasi* (Belajar Machine Le
 | | Code snippets only where needed | 4 short snippets | | |
 | | Images render in Markdown | Relative image paths | | |
 
-**Additional criteria met: 6 / 6** (Project Overview, Business Understanding, Data Understanding, Data Preparation, Modeling, Evaluation), which targets ⭐⭐⭐⭐⭐.
+**Additional criteria met: 6 / 6** (Project Overview, Business Understanding, Data Understanding, Data Preparation, Modeling, Evaluation).
 
-## Self-review checklist (Review Mandiri)
+## Self-review checklist
 
 - [x] Zip with 3 files: `.md` report, `.py` file, executed `.ipynb`
 - [x] Every code cell documented with text cells

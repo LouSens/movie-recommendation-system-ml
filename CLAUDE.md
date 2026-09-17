@@ -5,7 +5,7 @@
 
 ## 🎯 Project Purpose
 
-Production-ready **Movie Recommendation System** built for the **Dicoding Machine Learning Terapan** course submission. Implements two recommendation paradigms:
+Production-ready **Movie Recommendation System** with a self-contained notebook, an Indonesian report and a submission package. Implements two recommendation paradigms:
 
 1. **Content-Based Filtering (CBF)** — TF-IDF on genres and tags (separate, weighted blocks) + weighted cosine similarity
 2. **Collaborative Filtering (CF)** — SVD (Surprise library, rating prediction) + Neural Collaborative Filtering (NeuMF, PyTorch/CUDA, implicit feedback for top-N ranking)
@@ -17,7 +17,6 @@ Production-ready **Movie Recommendation System** built for the **Dicoding Machin
 | Key | Value |
 |-----|-------|
 | **Author** | David Kurniawan |
-| **Course** | Dicoding — Belajar Machine Learning Terapan |
 | **Submission Type** | Sistem Rekomendasi (Recommendation System) |
 | **Dataset** | MovieLens Latest Small (`ml-latest-small`) |
 | **Dataset Source** | https://grouplens.org/datasets/movielens/latest/ |
@@ -37,8 +36,8 @@ movie-recommendation-system-ml/
 │
 ├── CLAUDE.md                          # ← This file (Claude Code context)
 ├── README.md                          # GitHub project documentation
-├── laporan_proyek_machine_learning.md # Dicoding submission report (Indonesian)
-├── sistem_rekomendasi_film.py         # Exported .py (Dicoding submission)
+├── laporan_proyek_machine_learning.md # Project report (Indonesian)
+├── sistem_rekomendasi_film.py         # Exported .py (submission)
 ├── requirements.txt                   # Python dependencies
 ├── pyproject.toml                     # pytest + ruff config
 ├── .gitignore
@@ -158,7 +157,7 @@ Robust, tested implementation with built-in CV. Scores for all pairs are compute
 MovieLens popularity is strong; SVD and CBF are below it on ranking metrics, NeuMF beats it. Keep it as a sanity floor.
 
 ### Self-contained notebook
-The Dicoding zip only contains the notebook, the .py and the report (+ figures), so the notebook must not import `src/`. Model/data logic is duplicated deliberately — keep both in sync.
+The submission zip only contains the notebook, the .py and the report (+ figures), so the notebook must not import `src/`. Model/data logic is duplicated deliberately — keep both in sync.
 
 ### Notebook and .py are standalone
 The notebook never imports `src/`, `visualization.py` or any other repo file: it defines its own copies of every function and downloads the data itself. It must run in an empty folder and still produce all 13 figures. The submission `.py` must contain **exactly** the notebook's code cells (only exported via `jupyter nbconvert --to script`, never hand-edited). `scripts/build_submission.py` enforces both and refuses to build otherwise.
