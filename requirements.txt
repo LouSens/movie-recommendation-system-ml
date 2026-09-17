@@ -1,0 +1,31 @@
+# Tested with Python 3.12.4 on Windows 11 (RTX 4050, CUDA 12.4).
+
+# Core
+numpy>=1.26,<2.0
+pandas>=2.2,<3.0
+scipy>=1.13
+
+# Machine learning
+scikit-learn>=1.5
+scikit-surprise>=1.1.4
+
+# Deep learning — install the build matching your hardware first, e.g.
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+torch>=2.3
+
+# Visualization
+matplotlib>=3.8
+seaborn>=0.13.2
+
+# Notebook
+jupyter>=1.0
+ipykernel>=6.28
+nbconvert>=7.10
+
+# Utilities
+requests>=2.32
+
+# Development
+pytest>=8.0
+pytest-cov>=5.0
+ruff>=0.5

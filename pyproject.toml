@@ -1,0 +1,21 @@
+[project]
+name = "movie-recommendation-system"
+version = "1.0.0"
+description = "Content-based and collaborative filtering (SVD, Neural CF) movie recommender on MovieLens"
+authors = [{ name = "David Kurniawan" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["notebooks", "sistem_rekomendasi_film.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
