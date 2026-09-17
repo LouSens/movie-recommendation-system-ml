@@ -95,13 +95,6 @@ K_VALUES = (5, 10)
 TOP_N = 10
 
 
-def save_fig(name):
-    # Simpan figure aktif ke outputs/figures agar dapat dimuat di laporan.
-    plt.tight_layout()
-    plt.savefig(FIG_DIR / name, dpi=120, bbox_inches="tight")
-    plt.show()
-
-
 # ## 2. Data Loading
 # 
 # Dataset **MovieLens Latest Small** diunduh langsung dari situs GroupLens, kemudian empat berkas CSV (`movies.csv`, `ratings.csv`, `tags.csv`, `links.csv`) diekstrak ke `data/raw/`. Jika berkas sudah ada, unduhan dilewati.
@@ -218,73 +211,213 @@ display(pd.DataFrame({"rating per user": per_user.describe(), "rating per film":
 # `links.csv` hanya berisi ID eksternal sehingga tidak dipakai dalam pemodelan.
 
 # ### 3.3 Exploratory Data Analysis (EDA)
+# 
+# Semua grafik dibuat dengan fungsi visualisasi yang **sama persis** dengan modul `src/utils/visualization.py` pada repositori, sehingga notebook tetap mandiri (*self-contained*) tetapi kode visualisasinya tidak terduplikasi dengan logika berbeda. Setiap fungsi menggambar satu grafik, menyimpannya ke `outputs/figures/` (dipakai di laporan), lalu mengembalikan objek `Figure`.
+# 
+# Fungsi pendukung dan fungsi visualisasi EDA:
 
 # In[9]:
 
 
-counts = ratings["rating"].value_counts().sort_index()
-plt.figure(figsize=(8, 4))
-sns.barplot(x=counts.index.astype(str), y=counts.values, color="#3b7dd8")
-plt.axvline(list(counts.index).index(4.0) - 0.5, color="#d64545", ls="--", label="relevan (≥ 4.0)")
-plt.title("Distribusi rating")
-plt.xlabel("Rating")
-plt.ylabel("Jumlah rating")
-plt.legend()
-save_fig("01_rating_distribution.png")
-print(f"Rata-rata rating: {ratings['rating'].mean():.2f} | median: {ratings['rating'].median()}")
-print(f"Proporsi rating >= 4.0: {(ratings['rating'] >= 4).mean():.1%}")
+ACCENT = "#d64545"
 
 
-# **Insight:** rating condong ke nilai tinggi — nilai paling sering adalah 4.0, disusul 3.0 dan 5.0, dengan rata-rata ±3.5. Pengguna juga lebih sering memberi angka bulat daripada setengah. Sekitar setengah rating bernilai ≥ 4.0, sehingga ambang **4.0** masuk akal untuk mendefinisikan film yang *relevan/disukai* saat evaluasi.
+def _finish(fig: plt.Figure, save_path: Path | str | None) -> plt.Figure:
+    """Tighten the layout and save ``fig`` to ``save_path`` (if given)."""
+    fig.tight_layout()
+    if save_path is not None:
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, dpi=120, bbox_inches="tight")
+    return fig
+
+
+def _genre_lists(genres: pd.Series) -> pd.Series:
+    """Split ``Action|Comedy`` strings into lists."""
+    return genres.fillna("").str.split("|")
+
+
+def plot_rating_distribution(
+    ratings: pd.DataFrame, threshold: float = 4.0, save_path: Path | str | None = None
+) -> plt.Figure:
+    """Bar chart of how often each rating value (0.5–5.0) is given."""
+    counts = ratings["rating"].value_counts().sort_index()
+    fig, ax = plt.subplots(figsize=(8, 4))
+    sns.barplot(x=counts.index.astype(str), y=counts.values, color="#3b7dd8", ax=ax)
+    ax.axvline(
+        list(counts.index).index(threshold) - 0.5,
+        color=ACCENT,
+        ls="--",
+        label=f"relevan (≥ {threshold})",
+    )
+    ax.set(title="Distribusi rating", xlabel="Rating", ylabel="Jumlah rating")
+    ax.legend()
+    return _finish(fig, save_path)
+
+
+def plot_genre_frequency(movies: pd.DataFrame, save_path: Path | str | None = None) -> plt.Figure:
+    """Horizontal bar chart of the number of movies per genre."""
+    counts = _genre_lists(movies["genres"]).explode().value_counts()
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.barplot(
+        x=counts.values, y=counts.index, hue=counts.index, palette="viridis", legend=False, ax=ax
+    )
+    ax.set(title="Jumlah film per genre", xlabel="Jumlah film", ylabel="")
+    return _finish(fig, save_path)
+
+
+def plot_user_activity(ratings: pd.DataFrame, save_path: Path | str | None = None) -> plt.Figure:
+    """Histogram (log x-axis) of the number of ratings per user."""
+    per_user = ratings.groupby("userId").size()
+    bins = np.logspace(np.log10(per_user.min()), np.log10(per_user.max()), 40)
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.hist(per_user, bins=bins, color="#2a9d8f", edgecolor="white")
+    ax.set_xscale("log")
+    ax.axvline(per_user.median(), color=ACCENT, ls="--", label=f"median = {per_user.median():.0f}")
+    ax.set(
+        title="Jumlah rating per user", xlabel="Rating per user (skala log)", ylabel="Jumlah user"
+    )
+    ax.legend()
+    return _finish(fig, save_path)
+
+
+def plot_long_tail(ratings: pd.DataFrame, save_path: Path | str | None = None) -> plt.Figure:
+    """Movie popularity curve highlighting the head that receives 50% of all ratings."""
+    per_movie = ratings.groupby("movieId").size().sort_values(ascending=False).to_numpy()
+    cumulative = per_movie.cumsum() / per_movie.sum()
+    head = int(np.searchsorted(cumulative, 0.5)) + 1
+    ranks = np.arange(1, len(per_movie) + 1)
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(ranks, per_movie, color="#264653")
+    ax.fill_between(
+        ranks[:head],
+        per_movie[:head],
+        color="#e9c46a",
+        alpha=0.6,
+        label=f"{head} film teratas = 50% rating",
+    )
+    ax.set_yscale("log")
+    ax.set(
+        title="Popularitas film (long tail)",
+        xlabel="Peringkat film",
+        ylabel="Jumlah rating (skala log)",
+    )
+    ax.legend()
+    return _finish(fig, save_path)
+
+
+def plot_ratings_per_year(ratings: pd.DataFrame, save_path: Path | str | None = None) -> plt.Figure:
+    """Number of ratings (bars) and mean rating (line) per calendar year."""
+    years = pd.to_datetime(ratings["timestamp"], unit="s").dt.year
+    yearly = ratings.groupby(years)["rating"].agg(["size", "mean"])
+    fig, ax = plt.subplots(figsize=(9, 4))
+    ax.bar(yearly.index, yearly["size"], color="#8ab17d")
+    ax.set(title="Jumlah rating per tahun", xlabel="Tahun", ylabel="Jumlah rating")
+    ax2 = ax.twinx()
+    ax2.plot(yearly.index, yearly["mean"], color=ACCENT, marker="o")
+    ax2.set_ylabel("Rata-rata rating", color=ACCENT)
+    ax2.grid(False)
+    return _finish(fig, save_path)
+
+
+def plot_top_tags(
+    tags: pd.DataFrame, top_n: int = 20, save_path: Path | str | None = None
+) -> plt.Figure:
+    """Most frequent tags (lower-cased and stripped)."""
+    counts = tags["tag"].str.lower().str.strip().value_counts().head(top_n)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.barplot(
+        x=counts.values, y=counts.index, hue=counts.index, palette="mako", legend=False, ax=ax
+    )
+    ax.set(title=f"{top_n} tag terpopuler", xlabel="Frekuensi", ylabel="")
+    return _finish(fig, save_path)
+
+
+def plot_genre_ratings(
+    movies: pd.DataFrame,
+    ratings: pd.DataFrame,
+    min_ratings: int = 5,
+    save_path: Path | str | None = None,
+) -> plt.Figure:
+    """Box plot of per-movie mean rating by genre, for movies with ``>= min_ratings``."""
+    stats = ratings.groupby("movieId")["rating"].agg(["mean", "size"]).reset_index()
+    stats = stats[stats["size"] >= min_ratings].merge(movies[["movieId", "genres"]], on="movieId")
+    exploded = stats.assign(genre=_genre_lists(stats["genres"])).explode("genre")
+    order = exploded.groupby("genre")["mean"].median().sort_values(ascending=False).index
+    fig, ax = plt.subplots(figsize=(9, 6))
+    sns.boxplot(
+        data=exploded, x="mean", y="genre", order=order, color="#90be6d", fliersize=2, ax=ax
+    )
+    ax.set(
+        title=f"Rata-rata rating film per genre (film dengan ≥ {min_ratings} rating)",
+        xlabel="Rata-rata rating film",
+        ylabel="",
+    )
+    return _finish(fig, save_path)
+
+
+def plot_sparsity(
+    ratings: pd.DataFrame, size: int = 100, save_path: Path | str | None = None
+) -> plt.Figure:
+    """Filled cells of the ``size`` most active users × ``size`` most rated movies."""
+    top_users = ratings["userId"].value_counts().index[:size]
+    top_movies = ratings["movieId"].value_counts().index[:size]
+    block = (
+        ratings[ratings["userId"].isin(top_users) & ratings["movieId"].isin(top_movies)]
+        .pivot_table(index="userId", columns="movieId", values="rating")
+        .reindex(index=top_users, columns=top_movies)
+    )
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.imshow(block.notna(), cmap="Greys", aspect="auto", interpolation="nearest")
+    ax.set(
+        title=f"Matriks user-item: {size} user teraktif × {size} film terpopuler\n"
+        "(sel hitam = ada rating)",
+        xlabel="Film",
+        ylabel="User",
+    )
+    ax.grid(False)
+    return _finish(fig, save_path)
+
 
 # In[10]:
 
 
-genre_counts = movies["genres"].str.split("|").explode().value_counts()
-plt.figure(figsize=(8, 6))
-sns.barplot(x=genre_counts.values, y=genre_counts.index, hue=genre_counts.index, palette="viridis", legend=False)
-plt.title("Jumlah film per genre")
-plt.xlabel("Jumlah film")
-plt.ylabel("")
-save_fig("02_genre_frequency.png")
+plot_rating_distribution(ratings, threshold=RELEVANCE_THRESHOLD, save_path=FIG_DIR / "01_rating_distribution.png")
+plt.show()
+print(f"Rata-rata rating: {ratings['rating'].mean():.2f} | median: {ratings['rating'].median()}")
+print(f"Proporsi rating >= 4.0: {(ratings['rating'] >= RELEVANCE_THRESHOLD).mean():.1%}")
+
+
+# **Insight:** rating condong ke nilai tinggi — nilai paling sering adalah 4.0, disusul 3.0 dan 5.0, dengan rata-rata ±3.5. Pengguna juga lebih sering memberi angka bulat daripada setengah. Sekitar setengah rating bernilai ≥ 4.0, sehingga ambang **4.0** masuk akal untuk mendefinisikan film yang *relevan/disukai* saat evaluasi.
+
+# In[11]:
+
+
+plot_genre_frequency(movies, save_path=FIG_DIR / "02_genre_frequency.png")
+plt.show()
 print("Rata-rata jumlah genre per film:", round(movies["genres"].str.split("|").str.len().mean(), 2))
 
 
 # **Insight:** *Drama* dan *Comedy* mendominasi katalog, sedangkan *Film-Noir*, *IMAX*, dan `(no genres listed)` sangat jarang. Satu film rata-rata punya lebih dari dua genre. Genre umum seperti Drama kurang membedakan satu film dari film lain, sehingga pembobotan **TF-IDF** (memberi bobot kecil pada genre umum) tepat untuk *content-based filtering*.
 
-# In[11]:
+# In[12]:
 
 
-bins = np.logspace(np.log10(per_user.min()), np.log10(per_user.max()), 40)
-plt.figure(figsize=(8, 4))
-plt.hist(per_user, bins=bins, color="#2a9d8f", edgecolor="white")
-plt.xscale("log")
-plt.axvline(per_user.median(), color="#d64545", ls="--", label=f"median = {per_user.median():.0f}")
-plt.title("Jumlah rating per user")
-plt.xlabel("Rating per user (skala log)")
-plt.ylabel("Jumlah user")
-plt.legend()
-save_fig("03_user_activity.png")
+plot_user_activity(ratings, save_path=FIG_DIR / "03_user_activity.png")
+plt.show()
+print(f"Median rating per user: {per_user.median():.1f} | maksimum: {per_user.max():,}")
 
 
 # **Insight:** setiap user memiliki minimal 20 rating (sesuai kebijakan GroupLens), tetapi distribusinya sangat miring ke kanan: median sekitar 70 rating, sementara user paling aktif memberi lebih dari 2.600 rating. Pembagian *train/test* dilakukan **per user** agar setiap user tetap terwakili di kedua set.
 
-# In[12]:
+# In[13]:
 
 
+plot_long_tail(ratings, save_path=FIG_DIR / "04_long_tail.png")
+plt.show()
 sorted_counts = per_movie.sort_values(ascending=False).to_numpy()
-cumulative = sorted_counts.cumsum() / sorted_counts.sum()
-head = int(np.searchsorted(cumulative, 0.5)) + 1
-plt.figure(figsize=(8, 4))
-plt.plot(np.arange(1, len(sorted_counts) + 1), sorted_counts, color="#264653")
-plt.fill_between(np.arange(1, head + 1), sorted_counts[:head], color="#e9c46a", alpha=0.6,
-                 label=f"{head} film teratas = 50% rating")
-plt.yscale("log")
-plt.title("Popularitas film (long tail)")
-plt.xlabel("Peringkat film")
-plt.ylabel("Jumlah rating (skala log)")
-plt.legend()
-save_fig("04_long_tail.png")
+head = int(np.searchsorted(sorted_counts.cumsum() / sorted_counts.sum(), 0.5)) + 1
 print(f"{head} film ({head / len(sorted_counts):.1%} film yang dirating) menerima 50% seluruh rating.")
 print(f"Film dengan hanya 1 rating: {(per_movie == 1).sum():,} ({(per_movie == 1).mean():.1%})")
 print(f"Film dengan < {MIN_MOVIE_RATINGS} rating: {(per_movie < MIN_MOVIE_RATINGS).sum():,}")
@@ -292,75 +425,46 @@ print(f"Film dengan < {MIN_MOVIE_RATINGS} rating: {(per_movie < MIN_MOVIE_RATING
 
 # **Insight:** pola **long tail** terlihat jelas — sebagian kecil film populer menerima separuh rating, sedangkan lebih dari sepertiga film hanya punya satu rating. Film dengan sangat sedikit rating tidak memberi sinyal kolaboratif yang cukup, sehingga film dengan < 5 rating akan difilter pada tahap *data preparation*.
 
-# In[13]:
+# In[14]:
 
 
-ratings_dt = pd.to_datetime(ratings["timestamp"], unit="s")
-yearly = ratings.groupby(ratings_dt.dt.year)["rating"].agg(["size", "mean"])
-fig, ax = plt.subplots(figsize=(9, 4))
-ax.bar(yearly.index, yearly["size"], color="#8ab17d")
-ax.set(title="Jumlah rating per tahun", xlabel="Tahun", ylabel="Jumlah rating")
-ax2 = ax.twinx()
-ax2.plot(yearly.index, yearly["mean"], color="#d64545", marker="o")
-ax2.set_ylabel("Rata-rata rating", color="#d64545")
-ax2.grid(False)
-save_fig("05_ratings_per_year.png")
+plot_ratings_per_year(ratings, save_path=FIG_DIR / "05_ratings_per_year.png")
+plt.show()
+yearly_mean = ratings.groupby(pd.to_datetime(ratings["timestamp"], unit="s").dt.year)["rating"].mean()
+print(f"Rata-rata rating tahunan: {yearly_mean.min():.2f} – {yearly_mean.max():.2f}")
 
 
 # **Insight:** aktivitas rating tidak merata antartahun (ada lonjakan pada beberapa tahun karena segelintir user sangat aktif), dan rata-rata rating per tahun berfluktuasi sekitar 3.3–3.9. Karena pola waktu ini tidak stabil, pembagian data dilakukan secara acak per user, bukan berdasarkan waktu.
 
-# In[14]:
+# In[15]:
 
 
-tag_norm = tags["tag"].str.lower().str.strip()
-top_tags = tag_norm.value_counts().head(20)
-plt.figure(figsize=(8, 6))
-sns.barplot(x=top_tags.values, y=top_tags.index, hue=top_tags.index, palette="mako", legend=False)
-plt.title("20 tag terpopuler")
-plt.xlabel("Frekuensi")
-plt.ylabel("")
-save_fig("06_top_tags.png")
+plot_top_tags(tags, top_n=20, save_path=FIG_DIR / "06_top_tags.png")
+plt.show()
 tagged_share = movies["movieId"].isin(tags["movieId"]).mean()
 print(f"Film yang memiliki tag: {tags['movieId'].nunique():,} dari {len(movies):,} ({tagged_share:.1%})")
 
 
 # **Insight:** tag berisi deskripsi yang kaya makna (*atmospheric*, *superhero*, *thought-provoking*, *disney*, *twist ending*, dll.), tetapi hanya sekitar 16% film yang memiliki tag. Tag terpopuler *in netflix queue* sebenarnya penanda "ingin ditonton" dan bukan deskripsi konten, sehingga menjadi *noise* kecil yang bobotnya diredam oleh IDF. Karena itu genre dan tag akan dibobot secara **terpisah**: film tanpa tag tetap bisa direkomendasikan lewat genre, sedangkan film dengan tag mendapat sinyal tambahan.
 
-# In[15]:
+# In[16]:
 
 
-movie_stats = ratings.groupby("movieId")["rating"].agg(["mean", "size"]).reset_index()
-movie_stats = movie_stats[movie_stats["size"] >= MIN_MOVIE_RATINGS].merge(movies, on="movieId")
-exploded = movie_stats.assign(genre=movie_stats["genres"].str.split("|")).explode("genre")
-order = exploded.groupby("genre")["mean"].median().sort_values(ascending=False).index
-plt.figure(figsize=(9, 6))
-sns.boxplot(data=exploded, x="mean", y="genre", order=order, color="#90be6d", fliersize=2)
-plt.title(f"Rata-rata rating film per genre (film dengan ≥ {MIN_MOVIE_RATINGS} rating)")
-plt.xlabel("Rata-rata rating film")
-plt.ylabel("")
-save_fig("07_genre_ratings.png")
+plot_genre_ratings(movies, ratings, min_ratings=MIN_MOVIE_RATINGS, save_path=FIG_DIR / "07_genre_ratings.png")
+plt.show()
 
 
 # **Insight:** *Film-Noir*, *Documentary*, dan *War* memiliki median rating film tertinggi, sedangkan *Horror* paling rendah, disusul *Action*, *Comedy*, dan *Children*. Selisih antargenre tidak besar dibanding sebaran di dalam genre, jadi genre saja tidak cukup untuk memprediksi preferensi — pola kolaboratif antar-user tetap diperlukan.
 
-# In[16]:
+# In[17]:
 
 
-top_users = per_user.sort_values(ascending=False).index[:100]
-top_movies = per_movie.sort_values(ascending=False).index[:100]
-block = (
-    ratings[ratings["userId"].isin(top_users) & ratings["movieId"].isin(top_movies)]
-    .pivot_table(index="userId", columns="movieId", values="rating")
-    .reindex(index=top_users, columns=top_movies)
-)
-plt.figure(figsize=(6, 6))
-plt.imshow(block.notna(), cmap="Greys", aspect="auto", interpolation="nearest")
-plt.title("Matriks user-item: 100 user teraktif × 100 film terpopuler\n(sel hitam = ada rating)")
-plt.xlabel("Film")
-plt.ylabel("User")
-plt.grid(False)
-save_fig("08_sparsity.png")
-print(f"Kepadatan blok terpadat : {block.notna().values.mean():.1%}")
+plot_sparsity(ratings, size=100, save_path=FIG_DIR / "08_sparsity.png")
+plt.show()
+top_users = ratings["userId"].value_counts().index[:100]
+top_movies = ratings["movieId"].value_counts().index[:100]
+block_density = len(ratings[ratings["userId"].isin(top_users) & ratings["movieId"].isin(top_movies)]) / 100**2
+print(f"Kepadatan blok terpadat : {block_density:.1%}")
 print(f"Kepadatan seluruh matriks: {len(ratings) / (n_users * n_rated_movies):.2%}")
 
 
@@ -380,7 +484,7 @@ print(f"Kepadatan seluruh matriks: {len(ratings) / (n_users * n_rated_movies):.2
 
 # ### 4.1 Membersihkan data film
 
-# In[17]:
+# In[18]:
 
 
 movies_clean = movies.drop_duplicates(subset="movieId").copy()
@@ -398,7 +502,7 @@ display(movies_clean.head())
 
 # ### 4.2 Membersihkan data rating
 
-# In[18]:
+# In[19]:
 
 
 ratings_clean = ratings.dropna(subset=["userId", "movieId", "rating"]).copy()
@@ -418,7 +522,7 @@ display(ratings_clean.head())
 # 
 # Tag diubah ke huruf kecil, karakter non-alfanumerik diganti spasi (`"Sci-Fi"` → `"sci fi"`), tag kosong dibuang, dan pasangan (film, tag) yang sama dihapus agar satu tag tidak terhitung berkali-kali hanya karena diberikan oleh beberapa user.
 
-# In[19]:
+# In[20]:
 
 
 def normalize_text(text):
@@ -439,7 +543,7 @@ display(tag_docs.head())
 # 
 # Setiap genre dijadikan **satu token** (`Sci-Fi` → `scifi`, `Film-Noir` → `filmnoir`) agar tidak terpecah menjadi dua kata. Tag hasil agregasi digabungkan ke tabel film; film tanpa tag diisi string kosong.
 
-# In[20]:
+# In[21]:
 
 
 def genre_token(genre):
@@ -459,7 +563,7 @@ display(movies_content[["movieId", "title", "genre_tokens", "tags"]].head())
 # 
 # User dengan < 20 rating dan film dengan < 5 rating dibuang. Filter diulang sampai stabil karena membuang film bisa membuat user turun di bawah ambang (dan sebaliknya).
 
-# In[21]:
+# In[22]:
 
 
 def filter_cold_start(df, min_user=MIN_USER_RATINGS, min_movie=MIN_MOVIE_RATINGS, max_iter=10):
@@ -482,7 +586,7 @@ print(f"Film   : {ratings_clean['movieId'].nunique():,} -> {ratings_filtered['mo
 # 
 # Rating setiap user diacak lalu 20% dijadikan data uji. Minimal satu rating tiap user selalu tetap di data latih sehingga semua user di data uji punya representasi di model. Film di data uji yang tidak pernah muncul di data latih dibuang, karena model kolaboratif tidak dapat menilainya.
 
-# In[22]:
+# In[23]:
 
 
 def split_by_user(df, test_size=TEST_SIZE, seed=SEED):
@@ -506,7 +610,7 @@ print(f"Rating relevan (>= {RELEVANCE_THRESHOLD}) di test: {(test_df['rating'] >
 # 
 # `userId` dan `movieId` dipetakan ke indeks 0..n-1 agar bisa dipakai sebagai indeks *embedding* PyTorch dan baris/kolom matriks. Himpunan film di data latih menjadi **kandidat rekomendasi** yang sama untuk semua model sehingga perbandingan adil.
 
-# In[23]:
+# In[24]:
 
 
 user_ids = np.sort(train_df["userId"].unique())
@@ -528,7 +632,7 @@ print(f"Matriks user-item (train): {user_item.shape} | terisi: {user_item.nnz:,}
 # 
 # Semua model menghasilkan **matriks skor `[n_users × n_items]`**. Rekomendasi *top-N* untuk seorang user adalah N film dengan skor tertinggi yang **belum pernah ia rating** di data latih. Fungsi bantu berikut dipakai bersama oleh semua model.
 
-# In[24]:
+# In[25]:
 
 
 def top_n_from_scores(user_id, score_row, n=TOP_N, score_name="score"):
@@ -565,7 +669,7 @@ display(user_history(SAMPLE_USER))
 # 
 # Genre dan tag dipisah karena jika digabung dalam satu dokumen, film yang tagnya banyak akan "menenggelamkan" genre, sehingga *Toy Story 2* malah kalah mirip dibanding film yang hanya kebetulan bergenre sama.
 
-# In[25]:
+# In[26]:
 
 
 TOKEN_PATTERN = r"(?u)\b\w+\b"
@@ -590,7 +694,22 @@ display(
 )
 
 
-# In[26]:
+# Fungsi visualisasi untuk *heatmap* similarity (dari `src/utils/visualization.py`):
+
+# In[27]:
+
+
+def plot_similarity_heatmap(
+    similarity: pd.DataFrame, save_path: Path | str | None = None
+) -> plt.Figure:
+    """Annotated heatmap of a square movie × movie similarity DataFrame."""
+    fig, ax = plt.subplots(figsize=(7, 5))
+    sns.heatmap(similarity, annot=True, fmt=".2f", cmap="rocket_r", vmin=0, vmax=1, ax=ax)
+    ax.set_title("Weighted cosine similarity antar film")
+    return _finish(fig, save_path)
+
+
+# In[28]:
 
 
 # Contoh matriks similarity untuk beberapa film
@@ -598,15 +717,13 @@ sample_titles = ["Toy Story (1995)", "Toy Story 2 (1999)", "Monsters, Inc. (2001
                  "Matrix, The (1999)", "Terminator 2: Judgment Day (1991)", "Godfather, The (1972)"]
 rows = [movies_content.index[movies_content["title"] == t][0] for t in sample_titles]
 sim_sample = pd.DataFrame(linear_kernel(content_matrix[rows]), index=sample_titles, columns=sample_titles)
-plt.figure(figsize=(7, 5))
-sns.heatmap(sim_sample, annot=True, fmt=".2f", cmap="rocket_r", vmin=0, vmax=1)
-plt.title("Weighted cosine similarity antar film")
-save_fig("09_cbf_similarity_heatmap.png")
+plot_similarity_heatmap(sim_sample, save_path=FIG_DIR / "09_cbf_similarity_heatmap.png")
+plt.show()
 
 
 # **Catatan:** *Toy Story* dan *Toy Story 2* bergenre identik **dan** berbagi tag `pixar`, sehingga skornya (0.63) lebih tinggi daripada *Monsters, Inc.* yang hanya berbagi genre (0.50). *Monsters, Inc.* tidak memiliki tag, jadi skor maksimumnya 0.5 — bahkan terhadap dirinya sendiri — karena komponen tag bernilai nol. Hal ini tidak mengubah urutan rekomendasi, karena semua kandidat dibandingkan terhadap film acuan yang sama.
 
-# In[27]:
+# In[29]:
 
 
 movie_popularity = movies_content["movieId"].map(ratings_clean["movieId"].value_counts()).fillna(0).to_numpy()
@@ -639,7 +756,7 @@ for query in ["Toy Story (1995)", "Matrix, The (1999)", "Godfather, The (1972)"]
 
 # Untuk rekomendasi **personal** (dan evaluasi yang sebanding dengan model CF), setiap user dibuatkan **profil konten**: rata-rata vektor konten film yang telah ia rating, dibobot dengan rating yang dikurangi rata-rata rating user tersebut. Film yang disukai (di atas rata-rata) menarik profil mendekat, film yang tidak disukai mendorongnya menjauh. Film kandidat kemudian diurutkan berdasarkan kemiripan dengan profil.
 
-# In[28]:
+# In[30]:
 
 
 movie_row = pd.Series(movies_content.index, index=movies_content["movieId"])
@@ -665,7 +782,7 @@ display(top_n_from_scores(SAMPLE_USER, cbf_scores[user_to_idx[SAMPLE_USER]], sco
 # 
 # **Hyperparameter tuning:** `GridSearchCV` 5-fold pada **data latih saja** (data uji tidak disentuh) dengan ruang pencarian `n_factors ∈ {50, 100}`, `n_epochs ∈ {20, 30}`, `lr_all ∈ {0.005, 0.01}`, `reg_all ∈ {0.02, 0.1}` (16 kombinasi × 5 fold).
 
-# In[29]:
+# In[31]:
 
 
 reader = Reader(rating_scale=(0.5, 5.0))
@@ -694,23 +811,45 @@ best_params = {k: v for k, v in grid.best_params["rmse"].items() if k != "random
 print("Parameter terbaik (RMSE):", best_params, "| CV RMSE =", round(grid.best_score["rmse"], 4))
 
 
-# In[30]:
+# Fungsi visualisasi hasil *grid search* (dari `src/utils/visualization.py`):
+
+# In[32]:
 
 
-plt.figure(figsize=(9, 5))
-labels = cv_table.apply(
-    lambda r: f"k={int(r.param_n_factors)}, ep={int(r.param_n_epochs)}, lr={r.param_lr_all}, reg={r.param_reg_all}",
-    axis=1,
-)
-plt.barh(labels[::-1], cv_table["mean_test_rmse"][::-1], xerr=cv_table["std_test_rmse"][::-1], color="#3b7dd8")
-plt.xlim(cv_table["mean_test_rmse"].min() - 0.02, cv_table["mean_test_rmse"].max() + 0.01)
-plt.title("SVD GridSearchCV — rata-rata RMSE 5-fold (lebih kecil lebih baik)")
-plt.xlabel("RMSE")
-plt.yticks(fontsize=7)
-save_fig("10_svd_grid_search.png")
+def plot_svd_grid_search(cv_table: pd.DataFrame, save_path: Path | str | None = None) -> plt.Figure:
+    """Mean ± std CV RMSE for every SVD hyperparameter combination (best on top).
+
+    Args:
+        cv_table: One row per combination with ``param_*``, ``mean_test_rmse`` and
+            ``std_test_rmse`` columns, sorted from best to worst.
+    """
+    param_cols = [c for c in cv_table.columns if c.startswith("param_") and "random" not in c]
+
+    def label(row: pd.Series) -> str:
+        return ", ".join(f"{c.removeprefix('param_')}={row[c]:g}" for c in param_cols)
+
+    labels = cv_table.apply(label, axis=1)
+    fig, ax = plt.subplots(figsize=(9, 5))
+    ax.barh(
+        labels[::-1],
+        cv_table["mean_test_rmse"][::-1],
+        xerr=cv_table["std_test_rmse"][::-1],
+        color="#3b7dd8",
+    )
+    ax.set_xlim(cv_table["mean_test_rmse"].min() - 0.02, cv_table["mean_test_rmse"].max() + 0.01)
+    ax.set(title="SVD GridSearchCV — rata-rata RMSE 5-fold (lebih kecil lebih baik)", xlabel="RMSE")
+    ax.tick_params(axis="y", labelsize=7)
+    return _finish(fig, save_path)
 
 
-# In[31]:
+# In[33]:
+
+
+plot_svd_grid_search(cv_table, save_path=FIG_DIR / "10_svd_grid_search.png")
+plt.show()
+
+
+# In[34]:
 
 
 svd_model = SVD(random_state=SEED, **best_params)
@@ -747,7 +886,7 @@ display(svd_top)
 # 
 # **Early stopping:** 10% rating latih tiap user disisihkan sebagai validasi. Setiap epoch dihitung NDCG@10 validasi, dan bobot epoch terbaik disimpan (*patience* 5, maksimum 30 epoch).
 
-# In[32]:
+# In[35]:
 
 
 class NeuMF(nn.Module):
@@ -785,7 +924,7 @@ print("Jumlah parameter:", f"{sum(p.numel() for p in model_preview.parameters())
 
 # Fungsi metrik ranking didefinisikan di sini karena dipakai untuk *early stopping* NeuMF dan evaluasi akhir (penjelasan rumus ada di bagian Evaluation).
 
-# In[33]:
+# In[36]:
 
 
 def precision_at_k(recommended, relevant, k):
@@ -827,7 +966,7 @@ def evaluate_ranking(scores, known_df, target_df, k_values=K_VALUES, threshold=R
     return result
 
 
-# In[34]:
+# In[37]:
 
 
 @torch.no_grad()
@@ -904,23 +1043,35 @@ best_epoch = int(ncf_history.loc[ncf_history["val_ndcg@10"].idxmax(), "epoch"])
 print(f"Pelatihan selesai dalam {time.perf_counter() - start:.1f} detik — epoch terbaik: {best_epoch}")
 
 
-# In[35]:
+# Fungsi visualisasi *learning curve* NeuMF (dari `src/utils/visualization.py`):
+
+# In[38]:
 
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
-ax1.plot(ncf_history["epoch"], ncf_history["train_loss"], marker="o", color="#264653")
-ax1.set(title="Training loss (BCE)", xlabel="Epoch", ylabel="Loss")
-ax2.plot(ncf_history["epoch"], ncf_history["val_ndcg@10"], marker="o", label="NDCG@10")
-ax2.plot(ncf_history["epoch"], ncf_history["val_recall@10"], marker="o", label="Recall@10")
-ax2.axvline(best_epoch, color="#d64545", ls="--", label=f"epoch terbaik = {best_epoch}")
-ax2.set(title="Validasi NeuMF", xlabel="Epoch", ylabel="Skor")
-ax2.legend()
-save_fig("11_ncf_learning_curve.png")
+def plot_training_history(history: pd.DataFrame, save_path: Path | str | None = None) -> plt.Figure:
+    """Training loss and validation NDCG@10 / Recall@10 per epoch for NeuMF."""
+    best_epoch = int(history.loc[history["val_ndcg@10"].idxmax(), "epoch"])
+    fig, (ax_loss, ax_val) = plt.subplots(1, 2, figsize=(11, 4))
+    ax_loss.plot(history["epoch"], history["train_loss"], marker="o", color="#264653")
+    ax_loss.set(title="Training loss (BCE)", xlabel="Epoch", ylabel="Loss")
+    ax_val.plot(history["epoch"], history["val_ndcg@10"], marker="o", label="NDCG@10")
+    ax_val.plot(history["epoch"], history["val_recall@10"], marker="o", label="Recall@10")
+    ax_val.axvline(best_epoch, color=ACCENT, ls="--", label=f"epoch terbaik = {best_epoch}")
+    ax_val.set(title="Validasi NeuMF", xlabel="Epoch", ylabel="Skor")
+    ax_val.legend()
+    return _finish(fig, save_path)
+
+
+# In[39]:
+
+
+plot_training_history(ncf_history, save_path=FIG_DIR / "11_ncf_learning_curve.png")
+plt.show()
 
 
 # **Insight:** *loss* latih terus turun, tetapi NDCG@10 validasi berhenti membaik setelah beberapa epoch — tanda model mulai *overfitting* pada interaksi latih. *Early stopping* mengembalikan bobot epoch dengan NDCG@10 validasi tertinggi.
 
-# In[36]:
+# In[40]:
 
 
 ncf_scores = ncf_score_all(ncf_model)
@@ -946,7 +1097,7 @@ display(top_n_from_scores(SAMPLE_USER, ncf_scores[user_to_idx[SAMPLE_USER]], sco
 # 
 # Sebagai pembanding, dihitung juga **popularity baseline** non-personal: semua user direkomendasikan film dengan jumlah rating ≥ 4.0 terbanyak di data latih.
 
-# In[37]:
+# In[41]:
 
 
 def rmse(y_true, y_pred):
@@ -970,7 +1121,7 @@ rating_table = pd.DataFrame(
 display(rating_table.round(4))
 
 
-# In[38]:
+# In[42]:
 
 
 popular_counts = train_df[train_df["rating"] >= RELEVANCE_THRESHOLD]["movieId"].value_counts()
@@ -988,38 +1139,67 @@ ranking_table.to_csv(RESULT_DIR / "evaluation_metrics.csv")
 display(ranking_table.round(4))
 
 
-# In[39]:
+# Fungsi visualisasi evaluasi (dari `src/utils/visualization.py`):
+
+# In[43]:
 
 
-metric_cols = [c for c in ranking_table.columns if c.split("@")[0] in ("Precision", "Recall", "NDCG")]
-long = ranking_table[metric_cols].reset_index(names="model").melt(id_vars="model", var_name="metric")
-plt.figure(figsize=(12, 5))
-ax = sns.barplot(data=long, x="metric", y="value", hue="model", palette="Set2")
-for container in ax.containers:
-    ax.bar_label(container, fmt="%.3f", fontsize=7, padding=1)
-plt.title("Perbandingan metrik ranking pada data uji")
-plt.xlabel("")
-plt.ylabel("Skor")
-plt.legend(title="", loc="upper center", bbox_to_anchor=(0.5, -0.08), ncol=4, frameon=False)
-plt.ylim(0, long["value"].max() * 1.12)
-save_fig("12_metric_comparison.png")
+def plot_metric_comparison(
+    results: pd.DataFrame, save_path: Path | str | None = None
+) -> plt.Figure:
+    """Grouped bar chart of Precision / Recall / NDCG @K per model.
+
+    Args:
+        results: DataFrame indexed by model name; other columns (RMSE, coverage, ...)
+            are ignored.
+    """
+    metrics = [c for c in results.columns if c.split("@")[0] in ("Precision", "Recall", "NDCG")]
+    long = results[metrics].reset_index(names="model").melt(id_vars="model", var_name="metric")
+    fig, ax = plt.subplots(figsize=(12, 5))
+    sns.barplot(data=long, x="metric", y="value", hue="model", palette="Set2", ax=ax)
+    for container in ax.containers:
+        ax.bar_label(container, fmt="%.3f", fontsize=7, padding=1)
+    ax.set(title="Perbandingan metrik ranking pada data uji", xlabel="", ylabel="Skor")
+    ax.set_ylim(0, long["value"].max() * 1.12)
+    ax.legend(title="", loc="upper center", bbox_to_anchor=(0.5, -0.08), ncol=4, frameon=False)
+    return _finish(fig, save_path)
 
 
-# In[40]:
+def plot_svd_errors(
+    y_true: np.ndarray, y_pred: np.ndarray, save_path: Path | str | None = None
+) -> plt.Figure:
+    """Distribution of SVD prediction errors and MAE per actual rating value."""
+    y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
+    errors = y_pred - y_true
+    by_rating = (
+        pd.DataFrame({"rating": y_true, "abs_err": np.abs(errors)})
+        .groupby("rating")["abs_err"]
+        .mean()
+    )
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
+    sns.histplot(errors, bins=40, kde=True, color="#3b7dd8", ax=ax1)
+    ax1.axvline(0, color="black", lw=0.8)
+    ax1.set(title="Distribusi galat prediksi SVD", xlabel="Prediksi − aktual")
+    ax2.bar(by_rating.index.astype(str), by_rating.values, color="#e76f51")
+    ax2.set(title="MAE SVD per nilai rating aktual", xlabel="Rating aktual", ylabel="MAE")
+    return _finish(fig, save_path)
 
 
-errors = svd_test_pred - test_df["rating"].to_numpy()
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
-sns.histplot(errors, bins=40, kde=True, color="#3b7dd8", ax=ax1)
-ax1.axvline(0, color="black", lw=0.8)
-ax1.set(title="Distribusi galat prediksi SVD", xlabel="Prediksi − aktual")
-by_rating = pd.DataFrame({"rating": test_df["rating"], "abs_err": np.abs(errors)}).groupby("rating")["abs_err"].mean()
-ax2.bar(by_rating.index.astype(str), by_rating.values, color="#e76f51")
-ax2.set(title="MAE SVD per nilai rating aktual", xlabel="Rating aktual", ylabel="MAE")
-save_fig("13_svd_errors.png")
+# In[44]:
 
 
-# In[41]:
+plot_metric_comparison(ranking_table, save_path=FIG_DIR / "12_metric_comparison.png")
+plt.show()
+
+
+# In[45]:
+
+
+plot_svd_errors(test_df["rating"].to_numpy(), svd_test_pred, save_path=FIG_DIR / "13_svd_errors.png")
+plt.show()
+
+
+# In[46]:
 
 
 # Mengapa SVD rendah pada metrik ranking? Bandingkan popularitas film yang direkomendasikan.

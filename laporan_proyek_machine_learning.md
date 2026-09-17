@@ -158,7 +158,7 @@ Tag memuat deskripsi yang kaya makna (*atmospheric*, *superhero*, *thought-provo
 
 ![Sparsity](outputs/figures/08_sparsity.png)
 
-Bahkan blok 100 pengguna teraktif × 100 film terpopuler hanya terisi 62,2%, dan seluruh matriks hanya terisi 1,70%. Kondisi ini menjadi alasan memakai representasi laten (SVD, NeuMF) yang dapat menggeneralisasi ke pasangan user-film yang belum teramati.
+Bahkan blok 100 pengguna teraktif × 100 film terpopuler hanya terisi 62,4%, dan seluruh matriks hanya terisi 1,70%. Kondisi ini menjadi alasan memakai representasi laten (SVD, NeuMF) yang dapat menggeneralisasi ke pasangan user-film yang belum teramati.
 
 ---
 

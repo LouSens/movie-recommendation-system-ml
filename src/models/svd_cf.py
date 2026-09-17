@@ -55,7 +55,8 @@ class SVDRecommender:
         best = search.best_params["rmse"]
         self.best_params = {k: v for k, v in best.items() if k != "random_state"}
         results = pd.DataFrame(search.cv_results)
-        keep = ["params", "mean_test_rmse", "std_test_rmse", "mean_test_mae", "rank_test_rmse"]
+        param_cols = [f"param_{name}" for name in self.config.param_grid]
+        keep = [*param_cols, "mean_test_rmse", "std_test_rmse", "mean_test_mae", "rank_test_rmse"]
         self.cv_results = results[keep].sort_values("rank_test_rmse").reset_index(drop=True)
         return self.best_params
 

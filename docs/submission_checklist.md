@@ -9,8 +9,8 @@ Maps every requirement of *Proyek Akhir: Sistem Rekomendasi* (Belajar Machine Le
 | `.zip` containing the three files | ✅ | `python scripts/build_submission.py` → `dist/submission_movie_recommendation.zip` |
 | Markdown report (`.md`) | ✅ | [`laporan_proyek_machine_learning.md`](../laporan_proyek_machine_learning.md) |
 | Python file (`.py`) | ✅ | [`sistem_rekomendasi_film.py`](../sistem_rekomendasi_film.py) (exported from the notebook; runs standalone) |
-| Jupyter notebook (`.ipynb`) **already executed** | ✅ | [`notebooks/sistem_rekomendasi_film.ipynb`](../notebooks/sistem_rekomendasi_film.ipynb): all 41 code cells executed, 0 errors |
-| Every code step documented with text cells | ✅ | 33 markdown cells (Indonesian) explain each step and its insights |
+| Jupyter notebook (`.ipynb`) **already executed** | ✅ | [`notebooks/sistem_rekomendasi_film.ipynb`](../notebooks/sistem_rekomendasi_film.ipynb): all 46 code cells executed, 0 errors |
+| Every code step documented with text cells | ✅ | 37 markdown cells (Indonesian) explain each step and its insights |
 | Free dataset usable for recommendation | ✅ | MovieLens Latest Small (GroupLens) |
 | Solution uses Content-Based **or** Collaborative Filtering | ✅ | Both, see Modeling |
 | Original work, not previously submitted/published | ✅ | Authored for this submission |

@@ -15,6 +15,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from src.config import (  # noqa: E402
@@ -69,10 +70,16 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
     logger.info("Ratings after cold-start filter: %d (from %d)", len(filtered), len(ratings))
 
     # 3. EDA figures ----------------------------------------------------------
-    viz.plot_rating_distribution(ratings, figures / "01_rating_distribution.png")
-    viz.plot_genre_frequency(movies, figures / "02_genre_frequency.png")
-    viz.plot_user_activity(ratings, figures / "03_user_activity.png")
-    viz.plot_long_tail(ratings, figures / "04_long_tail.png")
+    # Same functions and inputs (raw tables) as the notebook's EDA section.
+    viz.plot_rating_distribution(raw.ratings, save_path=figures / "01_rating_distribution.png")
+    viz.plot_genre_frequency(raw.movies, save_path=figures / "02_genre_frequency.png")
+    viz.plot_user_activity(raw.ratings, save_path=figures / "03_user_activity.png")
+    viz.plot_long_tail(raw.ratings, save_path=figures / "04_long_tail.png")
+    viz.plot_ratings_per_year(raw.ratings, save_path=figures / "05_ratings_per_year.png")
+    viz.plot_top_tags(raw.tags, save_path=figures / "06_top_tags.png")
+    viz.plot_genre_ratings(raw.movies, raw.ratings, save_path=figures / "07_genre_ratings.png")
+    viz.plot_sparsity(raw.ratings, save_path=figures / "08_sparsity.png")
+    plt.close("all")
 
     # 4. Split + encoders -----------------------------------------------------
     train, test = train_test_split_by_user(filtered)
@@ -91,6 +98,21 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
         cbf = ContentBasedRecommender(movies_content, popularity=popularity).fit()
         scores["Content-Based (TF-IDF)"] = cbf.score_users(train, user_enc, item_enc)
     save_pickle(cbf.tfidf_matrix, PROCESSED_DATA_DIR / "tfidf_matrix.pkl")
+    sample_titles = [
+        "Toy Story (1995)",
+        "Toy Story 2 (1999)",
+        "Monsters, Inc. (2001)",
+        "Matrix, The (1999)",
+        "Terminator 2: Judgment Day (1991)",
+        "Godfather, The (1972)",
+    ]
+    sample_ids = [
+        cbf.movies.loc[cbf.movies["title"] == t, "movieId"].iloc[0] for t in sample_titles
+    ]
+    heatmap = pd.DataFrame(
+        cbf.similarity_matrix(sample_ids), index=sample_titles, columns=sample_titles
+    )
+    viz.plot_similarity_heatmap(heatmap, save_path=figures / "09_cbf_similarity_heatmap.png")
     similar = cbf.recommend_similar("Toy Story (1995)")
     logger.info("Similar to Toy Story:\n%s", similar.to_string())
 
@@ -102,11 +124,13 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
         with timer("SVD grid search"):
             svd.tune(train)
         svd.cv_results.to_csv(RESULTS_DIR / "pipeline_svd_grid_search.csv", index=False)
+        viz.plot_svd_grid_search(svd.cv_results, save_path=figures / "10_svd_grid_search.png")
     logger.info("SVD params: %s", svd.best_params)
     svd.fit(train)
     save_pickle(svd.model, MODELS_DIR / "svd_model.pkl")
     svd_test = svd.predict(test)
     results["SVD"] = {"RMSE": rmse(test["rating"], svd_test), "MAE": mae(test["rating"], svd_test)}
+    viz.plot_svd_errors(test["rating"], svd_test, save_path=figures / "13_svd_errors.png")
     scores["SVD"] = svd.score_users(user_enc, item_enc)
 
     # 5c. Neural CF -----------------------------------------------------------
@@ -116,7 +140,9 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
         with timer("Neural CF training"):
             ncf = NCFRecommender(user_enc, item_enc).fit(train)
         ncf.save(str(MODELS_DIR / "ncf_model.pth"))
-        viz.plot_training_history(ncf.history.to_frame(), figures / "ncf_learning_curve.png")
+        viz.plot_training_history(
+            ncf.history.to_frame(), save_path=figures / "11_ncf_learning_curve.png"
+        )
         scores["Neural CF (NeuMF)"] = ncf.score_users()
 
     scores["Popularity baseline"] = popularity_scores(train, user_enc, item_enc)
@@ -131,7 +157,7 @@ def run(skip_tuning: bool = False, skip_ncf: bool = False) -> pd.DataFrame:
     table = pd.DataFrame(results).T
     table.to_csv(RESULTS_DIR / "pipeline_evaluation_metrics.csv")
     viz.plot_metric_comparison(
-        table.drop(columns=["Coverage@10"]), figures / "metric_comparison.png"
+        table.drop(columns=["Coverage@10"]), save_path=figures / "12_metric_comparison.png"
     )
     logger.info("Evaluation:\n%s", table.round(4).to_string())
 

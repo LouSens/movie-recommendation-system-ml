@@ -10,7 +10,7 @@ This document describes how the recommender is put together: the layers, the dat
 | **Fair comparison** | Every model outputs a score matrix over the **same** users × candidate movies, evaluated by one function with the same masking rules. |
 | **Leak-free** | Hyperparameter search and early stopping only see training data. The test set is used once, at the end. |
 | **Portable** | GPU is optional (auto-detected). The submission notebook has no dependency on `src/`. |
-| **Testable** | Pure functions and small classes; 34 unit tests run on synthetic data in seconds. |
+| **Testable** | Pure functions and small classes; 36 unit tests run on synthetic data in seconds. |
 
 ## 2. Layered view
 
@@ -65,7 +65,7 @@ Dependencies only point downward, e.g. models never import the pipeline, and met
 | `models/baseline.py` | Non-personalized popularity scores | `popularity_scores()` |
 | `evaluation/metrics.py` | Rating and ranking metrics, masked top-K evaluation | `rmse`, `mae`, `precision_at_k`, `recall_at_k`, `ndcg_at_k`, `evaluate_ranking`, `catalog_coverage` |
 | `utils/helpers.py` | Seeding, logging, pickling, timing, top-N table formatting | `top_n_for_user()` |
-| `utils/visualization.py` | EDA and evaluation plots | `plot_*` |
+| `utils/visualization.py` | All 13 figures (EDA, modeling, evaluation); single source for notebook and CLI | `plot_*`, `EDA_PLOTS`, `MODELING_PLOTS`, `EVALUATION_PLOTS` |
 | `pipeline.py` | Orchestrates everything; CLI flags `--skip-tuning`, `--skip-ncf` | `run()` |
 
 ## 4. Data contracts

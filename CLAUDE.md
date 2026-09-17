@@ -65,7 +65,7 @@ movie-recommendation-system-ml/
 │   │   └── metrics.py                 # Precision@K, Recall@K, NDCG@K, coverage, RMSE, MAE
 │   └── utils/
 │       ├── helpers.py                 # Seeding, pickling, top_n_for_user
-│       └── visualization.py           # EDA + result plots
+│       └── visualization.py           # All 13 figures; embedded verbatim in the notebook
 │
 ├── scripts/build_submission.py        # Builds dist/submission_movie_recommendation.zip
 ├── docs/                              # architecture.md, model_card.md, submission_checklist.md
@@ -73,14 +73,15 @@ movie-recommendation-system-ml/
 ├── data/raw/, data/processed/         # gitignored (except .gitkeep)
 ├── models/saved/                      # gitignored: svd_model.pkl, ncf_model.pth
 ├── outputs/figures/                   # 13 notebook figures (committed; used by the report)
-├── outputs/figures/pipeline/          # CLI figures (gitignored)
+├── outputs/figures/pipeline/          # Same 13 figures from the CLI (gitignored)
 ├── outputs/results/                   # evaluation_metrics.csv, svd_grid_search.csv
 │
-└── tests/                             # 34 tests on synthetic fixtures (conftest.py)
+└── tests/                             # 36 tests on synthetic fixtures (conftest.py)
     ├── test_loader.py
     ├── test_content_based.py
     ├── test_collaborative.py
-    └── test_metrics.py
+    ├── test_metrics.py
+    └── test_visualization.py
 ```
 
 ---
@@ -158,7 +159,10 @@ Robust, tested implementation with built-in CV. Scores for all pairs are compute
 MovieLens popularity is strong; SVD and CBF are below it on ranking metrics, NeuMF beats it. Keep it as a sanity floor.
 
 ### Self-contained notebook
-The Dicoding zip only contains the notebook, the .py and the report (+ figures), so the notebook must not import `src/`. Logic is duplicated deliberately — keep both in sync.
+The Dicoding zip only contains the notebook, the .py and the report (+ figures), so the notebook must not import `src/`. Model/data logic is duplicated deliberately — keep both in sync.
+
+### Plotting has one source: `src/utils/visualization.py`
+The notebook embeds these functions **verbatim**, grouped by section (`SHARED_HELPERS` + `EDA_PLOTS` at the start of EDA; `plot_similarity_heatmap`, `plot_svd_grid_search`, `plot_training_history` right before first use in Modeling; `EVALUATION_PLOTS` in Evaluation). After editing the module (including `ruff format`), regenerate and re-execute the notebook, then check each function's source still appears verbatim in the notebook. Chart labels are Indonesian because the figures go into the Indonesian report.
 
 ### Cold-start handling
 CBF handles new movies; CF uses the iterative ≥ 20 / ≥ 5 filter. A hybrid is on the roadmap.
@@ -178,7 +182,7 @@ CBF handles new movies; CF uses the iterative ≥ 20 / ≥ 5 filter. A hybrid is
 ## 🧪 Commands
 
 ```bash
-pytest                                        # 34 tests (~5–15 s)
+pytest                                        # 36 tests (~15 s)
 ruff check src tests scripts && ruff format --check src tests scripts
 python -m src.pipeline [--skip-tuning] [--skip-ncf]
 jupyter nbconvert --to notebook --execute --inplace notebooks/sistem_rekomendasi_film.ipynb
